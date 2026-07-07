@@ -3,11 +3,26 @@ import { NextResponse } from "next/server";
 
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
-  const response = await updateSession(request);
+function shouldRefreshSession(pathname: string) {
+  return (
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/scout") ||
+    pathname.startsWith("/auth/callback") ||
+    pathname.startsWith("/api/")
+  );
+}
 
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const isProtected = pathname.startsWith("/dashboard") || pathname.startsWith("/account");
+  const response = shouldRefreshSession(pathname)
+    ? await updateSession(request)
+    : NextResponse.next();
+
+  const isProtected =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/scout");
 
   if (!isProtected) return response;
 

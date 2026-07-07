@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { toast } from "react-toastify";
 import { z } from "zod";
 
 import { signInSchema } from "@/lib/validations";
@@ -27,6 +27,18 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
+
+  React.useEffect(() => {
+    if (searchParams.get("registered") === "1") {
+      toast.info("Account created. Check your email, then sign in.");
+    }
+    const error = searchParams.get("error");
+    if (error === "auth_callback_failed") {
+      toast.error("Email link expired or invalid. Sign in with your password.");
+    } else if (error?.startsWith("auth_callback")) {
+      toast.error("Could not complete email verification. Try signing in.");
+    }
+  }, [searchParams]);
 
   const form = useForm<Values>({
     resolver: zodResolver(signInSchema),
@@ -83,7 +95,7 @@ export function LoginForm() {
           )}
         />
 
-        <Button className="w-full" type="submit" disabled={pending}>
+        <Button className="w-full cursor-pointer" type="submit" disabled={pending}>
           {pending ? "Signing in..." : "Sign in"}
         </Button>
 

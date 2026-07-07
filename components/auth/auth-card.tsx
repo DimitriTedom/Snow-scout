@@ -12,7 +12,7 @@ export function AuthCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="w-full max-w-md">
+    <Card className="snow-panel w-full max-w-md border-white/10 bg-card/80">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>

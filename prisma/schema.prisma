@@ -14,7 +14,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profile   Profile?
+  profile  Profile?
+  projects ChannelProject[]
 
   @@map("users")
 }
@@ -29,4 +30,123 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
+}
+
+/// A creator's channel workspace — any clone user defines their own niche.
+model ChannelProject {
+  id          String   @id @default(cuid())
+  userId      String   @db.Uuid
+  name        String
+  slug        String
+  description String?
+  /// Pasted bible text or positioning doc (markdown). Any channel, any niche.
+  bibleText   String?  @db.Text
+  /// Optional path hint for local MCP agents (not used server-side on Vercel).
+  biblePath   String?
+  titleFormulas String? @db.Text
+  thumbnailNotes String? @db.Text
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competitors  CompetitorChannel[]
+  keywords     SeedKeyword[]
+  outliers     SeedOutlier[]
+  ideas        SavedIdea[]
+  searchRuns   ScoutSearchRun[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@map("channel_projects")
+}
+
+model CompetitorChannel {
+  id          String   @id @default(cuid())
+  projectId   String
+  label       String?
+  channelUrl  String
+  channelId   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  project ChannelProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("competitor_channels")
+}
+
+model SeedKeyword {
+  id        String   @id @default(cuid())
+  projectId String
+  keyword   String
+  createdAt DateTime @default(now())
+
+  project ChannelProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("seed_keywords")
+}
+
+model SeedOutlier {
+  id        String   @id @default(cuid())
+  projectId String
+  videoUrl  String
+  videoId   String?
+  title     String?
+  notes     String?
+  views     BigInt?
+  likes     BigInt?
+  comments  BigInt?
+  createdAt DateTime @default(now())
+
+  project ChannelProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("seed_outliers")
+}
+
+model SavedIdea {
+  id              String   @id @default(cuid())
+  projectId       String
+  sourceVideoId   String?
+  sourceTitle     String?
+  sourceUrl       String?
+  remixTitle      String
+  remixHook       String?
+  remixAngle      String?
+  outlierScore    Float?
+  engagementRate  Float?
+  thumbnailPath   String?
+  status          IdeaStatus @default(DRAFT)
+  briefJson       Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project ChannelProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("saved_ideas")
+}
+
+model ScoutSearchRun {
+  id         String   @id @default(cuid())
+  projectId  String
+  query      String
+  resultJson Json
+  createdAt  DateTime @default(now())
+
+  project ChannelProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("scout_search_runs")
+}
+
+enum IdeaStatus {
+  DRAFT
+  SHORTLISTED
+  APPROVED
+  IN_PRODUCTION
+  PUBLISHED
+  ARCHIVED
 }

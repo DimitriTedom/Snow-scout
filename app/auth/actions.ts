@@ -2,7 +2,8 @@
 
 import { z } from "zod";
 
-import { prisma } from "@/lib/prisma";
+import { getAuthCallbackUrl } from "@/lib/auth/site-url";
+import { syncUserFromAuth } from "@/lib/auth/sync-user";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema } from "@/lib/validations";
 
@@ -17,13 +18,17 @@ export async function signInAction(input: z.infer<typeof signInSchema> & { next?
     return { ok: false as const, error: "Missing Supabase environment variables." };
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
 
   if (error) {
     return { ok: false as const, error: error.message };
+  }
+
+  if (data.user) {
+    await syncUserFromAuth(data.user);
   }
 
   return { ok: true as const, redirectTo: input.next ?? "/dashboard" };
@@ -43,6 +48,12 @@ export async function signUpAction(input: z.infer<typeof signUpSchema>) {
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
+    options: {
+      emailRedirectTo: getAuthCallbackUrl("/dashboard"),
+      data: {
+        display_name: parsed.data.displayName?.trim() || null,
+      },
+    },
   });
 
   if (error) {
@@ -51,20 +62,16 @@ export async function signUpAction(input: z.infer<typeof signUpSchema>) {
 
   const user = data.user;
   if (user) {
-    await prisma.user.upsert({
-      where: { id: user.id },
-      update: { email: parsed.data.email },
-      create: {
-        id: user.id,
-        email: parsed.data.email,
-        profile: {
-          create: {
-            displayName: parsed.data.displayName?.trim() || null,
-          },
-        },
-      },
-    });
+    await syncUserFromAuth(user, parsed.data.displayName);
   }
 
-  return { ok: true as const, redirectTo: "/dashboard" };
+  if (data.session) {
+    return { ok: true as const, redirectTo: "/dashboard" };
+  }
+
+  return {
+    ok: true as const,
+    needsEmailConfirmation: true as const,
+    redirectTo: "/auth/login?registered=1",
+  };
 }

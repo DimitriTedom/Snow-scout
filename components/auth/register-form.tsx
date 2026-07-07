@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { toast } from "react-toastify";
 import { z } from "zod";
 
 import { signUpSchema } from "@/lib/validations";
@@ -37,6 +37,11 @@ export function RegisterForm() {
       const res = await signUpAction(values);
       if (!res.ok) {
         toast.error(res.error);
+        return;
+      }
+      if ("needsEmailConfirmation" in res && res.needsEmailConfirmation) {
+        toast.success("Check your email for the confirmation link.");
+        router.push(res.redirectTo);
         return;
       }
       toast.success("Account created!");
@@ -93,7 +98,7 @@ export function RegisterForm() {
           )}
         />
 
-        <Button className="w-full" type="submit" disabled={pending}>
+        <Button className="w-full cursor-pointer" type="submit" disabled={pending}>
           {pending ? "Creating account..." : "Create account"}
         </Button>
 
